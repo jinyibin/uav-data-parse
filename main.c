@@ -19,9 +19,11 @@ unsigned int lost_count=0;
 int m=0;
 unsigned int frame_time_last=0;
 FILE *fp ,*fp_fly_status,*fp_servo_test;
-  unsigned int gap=0;
-           unsigned char mode=1;
-		   unsigned char generate_servo_test=0;
+unsigned int gap=0;
+unsigned char mode=1;
+unsigned int data_refresh_rate=20;
+unsigned char imu_type = 0;
+unsigned char generate_servo_test=0;
 
 float sonar_data_original_last=22;
 float sonar_data_processed_last=22;
@@ -314,9 +316,11 @@ unsigned int serial_data_recv_ctrl(frame_info *frame_info ,unsigned char *buf)
                           gap =0;
                      else  
                           gap = *(uint32*)(buf+47)-frame_time_last;
-                     if(gap != 20){
+					 if (imu_type == 1)// frame time unit of sbg ellipse is us
+						 gap = (gap / 1000);
+                     if(gap != data_refresh_rate){
                          print_debug("----------------lost---------------%d ,frame %8d,frame time :%d\n",gap,count,*(uint32*)(buf+47));
-                         lost_count += ((gap/20)-1);
+                         lost_count += ((gap/data_refresh_rate)-1);
                       }
                      
                         // print_debug("%d ,frame %8d,frame time :%d\n",gap,count++,*(uint32*)(buf+47));
@@ -402,7 +406,7 @@ int read_file_list(char *p)
 	char file_name[100];
 	int file_name_length=0;
 
-	sprintf(cmd, "dir %s /b > %s\\filelist.txt",current_dir);
+	sprintf(cmd, "dir %s /b > %s\\filelist.txt",current_dir,current_dir);
 	
 	system(cmd);
 	strcpy(file_list, current_dir);
@@ -480,6 +484,7 @@ void main(){
 		   int  file_number;
 		   char current_dir[128];
 		   int i;
+		   
 		  
 		   printf("###created by Jin 2016-01-13\n");
      printf("###this program is used to parse UAV data saved on the ground or in the air\n");
@@ -490,7 +495,34 @@ void main(){
        mode = atol(console_buf);
 
 	   file_number = read_file_list(file_name);
+       printf("###please choose data refresh rate: 0 for 5ms\n");
+	   printf("###                                 1 for 10ms\n");
+	   printf("###                                 2 for 20ms\n");
+	   fgets(console_buf, 128, stdin); 
+	   console_buf[strlen(console_buf) - 1] = '\0';
+       switch( atol(console_buf)){
+		   case 0:
+		      data_refresh_rate = 5;
+			  break;
+		   case 1:
+			  data_refresh_rate = 10;
+			  break;
+		   case 2:
+			  data_refresh_rate = 20;
+			  break;
+		   default:
+		      data_refresh_rate = 20;
+			  break;
+	   }   
 
+	   printf("###please choose IMU type : 0 for SBG IG500\n");
+	   printf("###                         1 for SBG ELLIPSE\n");
+
+	   fgets(console_buf, 128, stdin);
+	   console_buf[strlen(console_buf) - 1] = '\0';
+	   imu_type = atol(console_buf);
+
+	   
    process:
 	   count = 0;
 	   frame_count = 0;
